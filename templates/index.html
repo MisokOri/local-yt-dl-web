@@ -1,0 +1,1301 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>YT Converter</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+
+    <style>
+      /* Kartu pilihan (radio) - tetap bisa diakses keyboard */
+      .opt input:checked + .opt-card {
+        background: #dc2626;
+        border-color: #ef4444;
+        color: #fff;
+      }
+      .opt input:checked + .opt-card .opt-sub {
+        color: #fee2e2;
+      }
+      .opt input:focus-visible + .opt-card {
+        outline: 2px solid #f87171;
+        outline-offset: 2px;
+      }
+
+      /* Transisi antar langkah */
+      .panel-enter {
+        animation: panelIn 0.2s ease-out;
+      }
+      @keyframes panelIn {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .panel-enter {
+          animation: none;
+        }
+      }
+    </style>
+  </head>
+
+  <body
+    class="bg-slate-950 text-white min-h-screen flex items-center justify-center p-6">
+    <main class="w-full max-w-xl">
+      <!-- Header -->
+      <div class="text-center mb-8">
+        <div class="text-red-500 text-5xl mb-4">
+          <i class="fa-brands fa-youtube"></i>
+        </div>
+        <h1 class="text-3xl font-bold">YT Converter</h1>
+        <p class="text-slate-400 mt-2">
+          Convert video atau playlist menjadi MP3 atau MP4
+        </p>
+      </div>
+
+      <div
+        class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+        <!-- Stepper -->
+        <nav aria-label="Langkah">
+          <ol id="stepper" class="flex items-center mb-7"></ol>
+        </nav>
+
+        <!-- ============ LANGKAH 1: LINK & FORMAT ============ -->
+        <section id="panel-source" data-panel>
+          <h2 class="sr-only outline-none" tabindex="-1">Link dan format</h2>
+
+          <form id="sourceForm" novalidate>
+            <label for="urlInput" class="block text-sm text-slate-300 mb-2">
+              URL YouTube
+            </label>
+
+            <div class="relative">
+              <i
+                class="fa-solid fa-link absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
+                aria-hidden="true"></i>
+              <input
+                id="urlInput"
+                type="url"
+                name="url"
+                autofocus
+                autocomplete="off"
+                placeholder="Link video atau playlist"
+                aria-describedby="urlError"
+                class="w-full bg-slate-800 border border-slate-700 rounded-xl pl-11 pr-14 py-3 outline-none focus:border-red-500 transition" />
+              <button
+                type="button"
+                id="pasteBtn"
+                aria-label="Tempel dari clipboard"
+                title="Tempel dari clipboard"
+                class="absolute right-1.5 top-1/2 -translate-y-1/2 h-10 w-10 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition">
+                <i class="fa-regular fa-paste" aria-hidden="true"></i>
+              </button>
+            </div>
+            <p id="urlError" class="hidden text-sm text-red-400 mt-2"></p>
+            <p class="text-xs text-slate-400 mt-2 mb-6">
+              Bisa link video, playlist, atau Mix.
+            </p>
+
+            <fieldset>
+              <legend class="block text-sm text-slate-300 mb-2">Format</legend>
+
+              <div class="grid grid-cols-2 gap-3 mb-7">
+                <label class="opt cursor-pointer">
+                  <input
+                    type="radio"
+                    name="format"
+                    value="mp3"
+                    class="sr-only"
+                    checked />
+                  <div
+                    class="opt-card bg-slate-800 border border-slate-700 rounded-xl p-4 text-center transition">
+                    <div class="font-semibold">
+                      <i class="fa-solid fa-music mr-2" aria-hidden="true"></i>
+                      MP3
+                    </div>
+                    <div class="opt-sub text-xs text-slate-400 mt-1">
+                      Audio saja
+                    </div>
+                  </div>
+                </label>
+
+                <label class="opt cursor-pointer">
+                  <input
+                    type="radio"
+                    name="format"
+                    value="mp4"
+                    class="sr-only" />
+                  <div
+                    class="opt-card bg-slate-800 border border-slate-700 rounded-xl p-4 text-center transition">
+                    <div class="font-semibold">
+                      <i class="fa-solid fa-video mr-2" aria-hidden="true"></i>
+                      MP4
+                    </div>
+                    <div class="opt-sub text-xs text-slate-400 mt-1">
+                      Video + audio
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </fieldset>
+
+            <button
+              type="submit"
+              class="w-full bg-red-600 hover:bg-red-700 rounded-xl py-3 font-semibold transition">
+              Lanjut
+              <i class="fa-solid fa-arrow-right ml-2" aria-hidden="true"></i>
+            </button>
+          </form>
+        </section>
+
+        <!-- ============ MEMUAT INFO (LAZY) ============ -->
+        <section id="panel-loading" class="hidden" data-panel>
+          <div id="loadingBody" aria-busy="true">
+            <h2 class="text-lg font-bold outline-none" tabindex="-1">
+              Membaca link...
+            </h2>
+            <p class="text-sm text-slate-400 mt-1 mb-5">
+              Mengambil judul dan pilihan kualitas.
+            </p>
+
+            <div class="flex gap-4 animate-pulse motion-reduce:animate-none">
+              <div class="w-32 h-[72px] bg-slate-800 rounded-lg shrink-0"></div>
+              <div class="flex-1 space-y-3 py-1">
+                <div class="h-3 bg-slate-800 rounded w-11/12"></div>
+                <div class="h-3 bg-slate-800 rounded w-2/3"></div>
+                <div class="h-3 bg-slate-800 rounded w-1/3"></div>
+              </div>
+            </div>
+
+            <p id="slowHint" class="hidden text-xs text-slate-400 mt-5">
+              Masih memuat. Playlist besar butuh waktu lebih lama.
+            </p>
+
+            <button
+              type="button"
+              id="loadingCancel"
+              class="w-full mt-6 bg-slate-700 hover:bg-slate-600 rounded-xl py-3 font-semibold transition">
+              Batal
+            </button>
+          </div>
+
+          <div id="loadingError" class="hidden text-center">
+            <div class="text-red-500 text-5xl mb-5">
+              <i class="fa-solid fa-circle-xmark" aria-hidden="true"></i>
+            </div>
+            <h2 class="text-xl font-bold outline-none" tabindex="-1">
+              Link tidak bisa dibaca
+            </h2>
+            <p
+              id="loadingErrorText"
+              class="text-slate-400 text-sm mt-3 mb-7 break-words"></p>
+            <div class="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                id="errorEdit"
+                class="bg-slate-700 hover:bg-slate-600 rounded-xl py-3 font-semibold transition">
+                Ubah link
+              </button>
+              <button
+                type="button"
+                id="errorRetry"
+                class="bg-red-600 hover:bg-red-700 rounded-xl py-3 font-semibold transition">
+                Coba lagi
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ PILIH VIDEO (PLAYLIST) ============ -->
+        <section id="panel-select" class="hidden" data-panel>
+          <h2 class="text-lg font-bold outline-none" tabindex="-1">
+            Pilih video
+          </h2>
+          <p id="selectSubtitle" class="text-sm text-slate-400 mt-1 mb-4"></p>
+
+          <div id="selectNotices" class="space-y-2 mb-4"></div>
+
+          <div class="flex flex-col sm:flex-row gap-2 mb-3">
+            <div class="relative flex-1">
+              <i
+                class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
+                aria-hidden="true"></i>
+              <input
+                id="filterInput"
+                type="search"
+                autocomplete="off"
+                placeholder="Cari judul video"
+                aria-label="Cari judul video"
+                class="w-full bg-slate-800 border border-slate-700 rounded-xl pl-11 pr-4 py-3 outline-none focus:border-red-500 transition" />
+            </div>
+            <label
+              class="flex items-center gap-3 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                id="selectAll"
+                class="h-5 w-5 accent-red-500" />
+              <span class="text-sm whitespace-nowrap">Pilih semua</span>
+            </label>
+          </div>
+
+          <p
+            id="selectedCount"
+            aria-live="polite"
+            class="text-xs text-slate-400 mb-2"></p>
+
+          <div
+            id="videoList"
+            class="max-h-80 overflow-y-auto rounded-xl border border-slate-800 divide-y divide-slate-800"></div>
+          <p
+            id="listEmpty"
+            class="hidden text-sm text-slate-400 text-center py-6">
+            Tidak ada video yang cocok.
+          </p>
+
+          <div class="grid grid-cols-[auto_1fr] gap-3 mt-6">
+            <button
+              type="button"
+              id="selectBack"
+              class="bg-slate-700 hover:bg-slate-600 rounded-xl px-5 py-3 font-semibold transition">
+              Kembali
+            </button>
+            <button
+              type="button"
+              id="selectNext"
+              class="bg-red-600 hover:bg-red-700 disabled:bg-slate-700 disabled:text-slate-400 disabled:cursor-not-allowed rounded-xl py-3 font-semibold transition">
+              Lanjut
+            </button>
+          </div>
+        </section>
+
+        <!-- ============ PILIH KUALITAS ============ -->
+        <section id="panel-quality" class="hidden" data-panel>
+          <h2 class="text-lg font-bold outline-none" tabindex="-1">
+            Pilih kualitas
+          </h2>
+
+          <div id="qualitySummary" class="mt-3 mb-4"></div>
+          <div id="qualityNotices" class="space-y-2 mb-4"></div>
+
+          <fieldset>
+            <legend
+              id="qualityLegend"
+              class="block text-sm text-slate-300 mb-2"></legend>
+            <div id="qualityOptions" class="grid gap-2"></div>
+          </fieldset>
+          <p id="qualityHint" class="text-xs text-slate-400 mt-3"></p>
+
+          <div class="grid grid-cols-[auto_1fr] gap-3 mt-6">
+            <button
+              type="button"
+              id="qualityBack"
+              class="bg-slate-700 hover:bg-slate-600 rounded-xl px-5 py-3 font-semibold transition">
+              Kembali
+            </button>
+            <button
+              type="button"
+              id="startBtn"
+              class="bg-red-600 hover:bg-red-700 disabled:opacity-70 disabled:cursor-not-allowed rounded-xl py-3 font-semibold transition">
+              <i class="fa-solid fa-download mr-2" aria-hidden="true"></i>
+              <span id="startLabel">Convert</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- ============ PROGRES ============ -->
+        <section id="panel-progress" class="hidden" data-panel>
+          <div class="text-center mb-6">
+            <div class="text-red-500 text-4xl mb-4">
+              <i
+                class="fa-solid fa-circle-notch fa-spin"
+                aria-hidden="true"></i>
+            </div>
+            <h2 class="text-xl font-bold outline-none" tabindex="-1">
+              Sedang Memproses
+            </h2>
+            <p
+              id="progressMessage"
+              aria-live="polite"
+              class="text-slate-400 text-sm mt-2">
+              Menyiapkan konversi...
+            </p>
+          </div>
+
+          <div id="progressItems" class="hidden mb-5">
+            <p
+              id="progressCurrent"
+              class="text-sm text-slate-300 mb-2 truncate"></p>
+            <ul
+              id="progressList"
+              class="max-h-48 overflow-y-auto rounded-xl border border-slate-800 divide-y divide-slate-800 text-sm"></ul>
+          </div>
+
+          <div class="flex justify-between text-sm mb-2">
+            <span class="text-slate-400">Progress</span>
+            <span id="progressPercent" class="font-bold text-red-400">0%</span>
+          </div>
+
+          <div
+            class="w-full h-3 bg-slate-800 rounded-full overflow-hidden"
+            role="progressbar"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+            id="progressTrack">
+            <div
+              id="progressBar"
+              class="h-full bg-red-500 rounded-full transition-all duration-300 motion-reduce:transition-none"
+              style="width: 0%"></div>
+          </div>
+
+          <button
+            type="button"
+            id="cancelBtn"
+            class="w-full mt-6 bg-slate-700 hover:bg-slate-600 disabled:opacity-70 disabled:cursor-not-allowed rounded-xl py-3 font-semibold transition">
+            Batalkan
+          </button>
+          <p class="text-xs text-slate-400 text-center mt-4">
+            Mohon tunggu, jangan tutup aplikasi.
+          </p>
+        </section>
+
+        <!-- ============ HASIL ============ -->
+        <section id="panel-result" class="hidden text-center" data-panel>
+          <div id="resultIcon" class="text-5xl mb-5"></div>
+          <h2
+            id="resultTitle"
+            class="text-xl font-bold outline-none"
+            tabindex="-1"></h2>
+          <p
+            id="resultText"
+            class="text-slate-400 text-sm mt-2 break-words"></p>
+
+          <div
+            id="resultFolder"
+            class="hidden mt-5 text-left bg-slate-800 border border-slate-700 rounded-xl p-3">
+            <p class="text-xs text-slate-400 mb-1">Disimpan di</p>
+            <p id="resultFolderPath" class="text-sm font-mono break-all"></p>
+          </div>
+
+          <div id="resultFailed" class="hidden mt-5 text-left">
+            <p class="text-sm text-amber-400 mb-2" id="resultFailedTitle"></p>
+            <ul
+              id="resultFailedList"
+              class="max-h-40 overflow-y-auto rounded-xl border border-slate-800 divide-y divide-slate-800 text-sm"></ul>
+          </div>
+
+          <div id="resultActions" class="grid gap-3 mt-7"></div>
+        </section>
+      </div>
+
+      <div class="text-center text-xs text-slate-400 mt-6">
+        <i class="fa-solid fa-computer mr-1" aria-hidden="true"></i>
+        Misok Digital
+      </div>
+    </main>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const PANELS = [
+        "source",
+        "loading",
+        "select",
+        "quality",
+        "progress",
+        "result",
+      ];
+
+      const state = {
+        panel: "source",
+        url: "",
+        format: "mp3",
+        scope: "auto",
+        info: null,
+        selected: new Set(),
+        resolution: "best",
+        bitrate: "192",
+        jobId: null,
+        cancelling: false,
+      };
+
+      const infoCache = new Map();
+      let infoController = null;
+      let slowTimer = null;
+      let pollTimer = null;
+      let pollFailures = 0;
+      let listBuiltFor = null;
+
+      /* ---------- Helper ---------- */
+      const esc = (value) =>
+        String(value ?? "").replace(
+          /[&<>"']/g,
+          (c) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[c],
+        );
+
+      function fmtDuration(total) {
+        if (total === null || total === undefined) return "";
+        const s = Math.round(total);
+        const h = Math.floor(s / 3600);
+        const m = Math.floor((s % 3600) / 60);
+        const sec = String(s % 60).padStart(2, "0");
+        return h ? `${h}:${String(m).padStart(2, "0")}:${sec}` : `${m}:${sec}`;
+      }
+
+      function fmtSize(bytes) {
+        if (!bytes) return "";
+        return bytes >= 1e9
+          ? `${(bytes / 1e9).toFixed(1)} GB`
+          : `${Math.max(1, Math.round(bytes / 1e6))} MB`;
+      }
+
+      function heightLabel(h) {
+        if (h >= 4320) return "8K · 4320p";
+        if (h >= 2160) return "4K · 2160p";
+        if (h >= 1440) return "2K · 1440p";
+        return `${h}p`;
+      }
+
+      function thumb(url, cls) {
+        if (!url) {
+          return `<div class="${cls} bg-slate-800 flex items-center justify-center text-slate-500"><i class="fa-solid fa-film" aria-hidden="true"></i></div>`;
+        }
+        return `<img src="${esc(url)}" alt="" loading="lazy" referrerpolicy="no-referrer" class="${cls} bg-slate-800 object-cover" onerror="this.style.visibility='hidden'" />`;
+      }
+
+      function notice(html, actionLabel, actionId) {
+        return `<div class="flex items-center justify-between gap-3 bg-slate-800 border border-slate-700 rounded-xl p-3 text-sm">
+          <span class="text-slate-300">${html}</span>
+          ${actionLabel ? `<button type="button" id="${actionId}" class="shrink-0 text-red-400 hover:text-red-300 font-semibold px-2 py-1">${actionLabel}</button>` : ""}
+        </div>`;
+      }
+
+      /* ---------- Stepper & navigasi ---------- */
+      const isPlaylist = () => state.info && state.info.type === "playlist";
+
+      function stepLabels() {
+        return isPlaylist()
+          ? ["Link", "Video", "Kualitas", "Unduh"]
+          : ["Link", "Kualitas", "Unduh"];
+      }
+
+      function currentStep() {
+        switch (state.panel) {
+          case "source":
+            return 0;
+          case "loading":
+          case "select":
+            return 1;
+          case "quality":
+            return isPlaylist() ? 2 : 1;
+          default:
+            return stepLabels().length - 1;
+        }
+      }
+
+      function renderStepper() {
+        const labels = stepLabels();
+        const current = currentStep();
+
+        $("stepper").innerHTML = labels
+          .map((label, i) => {
+            const done = i < current;
+            const active = i === current;
+            const circle = done
+              ? "bg-red-600 border-red-600 text-white"
+              : active
+                ? "bg-slate-800 border-red-500 text-red-400"
+                : "bg-slate-800 border-slate-700 text-slate-400";
+            const line = i < labels.length - 1;
+
+            return `<li class="flex items-center ${line ? "flex-1" : ""}" ${active ? 'aria-current="step"' : ""}>
+              <span class="flex items-center gap-2">
+                <span class="h-7 w-7 rounded-full border text-xs font-semibold flex items-center justify-center shrink-0 ${circle}">
+                  ${done ? '<i class="fa-solid fa-check" aria-hidden="true"></i>' : i + 1}
+                </span>
+                <span class="text-sm ${active ? "text-white font-medium" : "hidden sm:inline text-slate-400"}">${label}</span>
+              </span>
+              ${line ? `<span class="flex-1 h-px mx-3 ${done ? "bg-red-600" : "bg-slate-700"}" aria-hidden="true"></span>` : ""}
+            </li>`;
+          })
+          .join("");
+      }
+
+      function go(panel, { focus = true } = {}) {
+        state.panel = panel;
+
+        PANELS.forEach((name) => {
+          const el = $(`panel-${name}`);
+          el.classList.toggle("hidden", name !== panel);
+          el.classList.remove("panel-enter");
+        });
+
+        const active = $(`panel-${panel}`);
+        void active.offsetWidth;
+        active.classList.add("panel-enter");
+
+        renderStepper();
+
+        if (focus) {
+          const heading = active.querySelector("h2");
+          if (heading) heading.focus({ preventScroll: true });
+        }
+      }
+
+      /* ---------- Langkah 1: link & format ---------- */
+      const urlInput = $("urlInput");
+
+      function showUrlError(message) {
+        const el = $("urlError");
+        el.textContent = message || "";
+        el.classList.toggle("hidden", !message);
+        urlInput.classList.toggle("border-red-500", !!message);
+        urlInput.setAttribute("aria-invalid", message ? "true" : "false");
+      }
+
+      urlInput.addEventListener("input", () => showUrlError(""));
+
+      $("pasteBtn").addEventListener("click", async () => {
+        try {
+          const text = await navigator.clipboard.readText();
+          if (text) {
+            urlInput.value = text.trim();
+            showUrlError("");
+          }
+        } catch (e) {
+          // Izin clipboard ditolak: biarkan user menempel manual.
+        }
+        urlInput.focus();
+      });
+
+      function isValidUrl(value) {
+        try {
+          const u = new URL(value);
+          return u.protocol === "http:" || u.protocol === "https:";
+        } catch (e) {
+          return false;
+        }
+      }
+
+      $("sourceForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+
+        const url = urlInput.value.trim();
+
+        if (!url) {
+          showUrlError("Tempel link YouTube dulu ya.");
+          urlInput.focus();
+          return;
+        }
+
+        if (!isValidUrl(url)) {
+          showUrlError("Link belum valid. Pastikan diawali https://");
+          urlInput.focus();
+          return;
+        }
+
+        state.url = url;
+        state.format = document.querySelector(
+          'input[name="format"]:checked',
+        ).value;
+        state.scope = "auto";
+        loadInfo();
+      });
+
+      /* ---------- Lazy load info ---------- */
+      function showLoadingBody() {
+        $("loadingBody").classList.remove("hidden");
+        $("loadingError").classList.add("hidden");
+        $("slowHint").classList.add("hidden");
+      }
+
+      async function loadInfo() {
+        const key = `${state.url}|${state.scope}`;
+
+        if (infoCache.has(key)) {
+          applyInfo(infoCache.get(key));
+          return;
+        }
+
+        state.info = null;
+        showLoadingBody();
+        go("loading");
+
+        clearTimeout(slowTimer);
+        slowTimer = setTimeout(
+          () => $("slowHint").classList.remove("hidden"),
+          6000,
+        );
+
+        if (infoController) infoController.abort();
+        infoController = new AbortController();
+
+        try {
+          const body = new FormData();
+          body.append("url", state.url);
+          body.append("scope", state.scope);
+
+          const response = await fetch("/info", {
+            method: "POST",
+            body,
+            signal: infoController.signal,
+          });
+
+          const data = await response.json().catch(() => ({}));
+
+          if (!response.ok) {
+            throw new Error(data.error || "Gagal membaca link");
+          }
+
+          clearTimeout(slowTimer);
+          infoCache.set(key, data);
+          applyInfo(data);
+        } catch (error) {
+          if (error.name === "AbortError") return;
+
+          clearTimeout(slowTimer);
+          showInfoError(
+            error instanceof TypeError
+              ? "Tidak bisa terhubung ke aplikasi lokal. Pastikan server masih berjalan."
+              : error.message,
+          );
+        }
+      }
+
+      function showInfoError(message) {
+        $("loadingBody").classList.add("hidden");
+        $("loadingError").classList.remove("hidden");
+        $("loadingErrorText").textContent = message;
+        $("loadingError").querySelector("h2").focus({ preventScroll: true });
+      }
+
+      function cancelInfo() {
+        if (infoController) infoController.abort();
+        clearTimeout(slowTimer);
+      }
+
+      $("loadingCancel").addEventListener("click", () => {
+        cancelInfo();
+        go("source");
+        urlInput.focus();
+      });
+      $("errorEdit").addEventListener("click", () => {
+        go("source");
+        urlInput.focus();
+      });
+      $("errorRetry").addEventListener("click", loadInfo);
+
+      function applyInfo(data) {
+        state.info = data;
+        state.resolution = "best";
+
+        if (data.type === "playlist") {
+          state.selected = new Set(data.entries.map((e) => e.index));
+          listBuiltFor = null;
+          renderSelect();
+          go("select");
+        } else {
+          renderQuality();
+          go("quality");
+        }
+      }
+
+      /* ---------- Pilih video (playlist) ---------- */
+      function renderSelect() {
+        const info = state.info;
+        const parts = [];
+        if (info.uploader) parts.push(esc(info.uploader));
+        parts.push(`${info.entries.length} video`);
+
+        $("selectSubtitle").innerHTML =
+          `<span class="text-slate-300">${esc(info.title)}</span><br />${parts.join(" · ")}`;
+
+        const notices = [];
+        if (info.has_single) {
+          notices.push(
+            notice(
+              "Link ini juga menunjuk ke satu video.",
+              "Unduh video itu saja",
+              "switchToVideo",
+            ),
+          );
+        }
+        if (info.is_mix) {
+          notices.push(
+            notice(
+              "Mix dibuat otomatis oleh YouTube, jadi isinya bisa berbeda dari yang kamu lihat di YouTube.",
+            ),
+          );
+        }
+        if (info.skipped) {
+          notices.push(
+            notice(
+              `${info.skipped} video tidak tersedia (privat atau dihapus) dan dilewati.`,
+            ),
+          );
+        }
+        $("selectNotices").innerHTML = notices.join("");
+
+        const switchBtn = $("switchToVideo");
+        if (switchBtn) {
+          switchBtn.addEventListener("click", () => {
+            state.scope = "video";
+            loadInfo();
+          });
+        }
+
+        $("filterInput").value = "";
+
+        $("videoList").innerHTML = info.entries
+          .map((e) => {
+            const meta = [e.uploader, fmtDuration(e.duration)]
+              .filter(Boolean)
+              .map(esc)
+              .join(" · ");
+            return `<label class="vid-row flex items-center gap-3 p-3 cursor-pointer hover:bg-slate-800/60" data-title="${esc(e.title.toLowerCase())}">
+              <input type="checkbox" data-index="${e.index}" class="h-5 w-5 accent-red-500 shrink-0" ${state.selected.has(e.index) ? "checked" : ""} />
+              ${thumb(e.thumbnail, "w-20 h-[45px] rounded-md shrink-0")}
+              <span class="min-w-0 flex-1">
+                <span class="block text-sm leading-snug line-clamp-2">${esc(e.title)}</span>
+                ${meta ? `<span class="block text-xs text-slate-400 mt-0.5 truncate">${meta}</span>` : ""}
+              </span>
+            </label>`;
+          })
+          .join("");
+
+        $("listEmpty").classList.add("hidden");
+        updateSelection();
+      }
+
+      function visibleRows() {
+        return [...document.querySelectorAll("#videoList .vid-row")].filter(
+          (row) => !row.classList.contains("hidden"),
+        );
+      }
+
+      function updateSelection() {
+        const total = state.info.entries.length;
+        const count = state.selected.size;
+
+        $("selectedCount").textContent = `${count} dari ${total} video dipilih`;
+
+        const rows = visibleRows();
+        const checkedVisible = rows.filter(
+          (r) => r.querySelector("input").checked,
+        ).length;
+        const all = $("selectAll");
+        all.checked = rows.length > 0 && checkedVisible === rows.length;
+        all.indeterminate = checkedVisible > 0 && checkedVisible < rows.length;
+
+        const next = $("selectNext");
+        next.disabled = count === 0;
+        next.innerHTML =
+          count === 0
+            ? "Pilih minimal 1 video"
+            : `Lanjut · ${count} video <i class="fa-solid fa-arrow-right ml-2" aria-hidden="true"></i>`;
+      }
+
+      $("videoList").addEventListener("change", (event) => {
+        const box = event.target.closest("input[data-index]");
+        if (!box) return;
+        const index = Number(box.dataset.index);
+        box.checked ? state.selected.add(index) : state.selected.delete(index);
+        updateSelection();
+      });
+
+      $("selectAll").addEventListener("change", (event) => {
+        visibleRows().forEach((row) => {
+          const box = row.querySelector("input");
+          box.checked = event.target.checked;
+          const index = Number(box.dataset.index);
+          event.target.checked
+            ? state.selected.add(index)
+            : state.selected.delete(index);
+        });
+        updateSelection();
+      });
+
+      $("filterInput").addEventListener("input", (event) => {
+        const q = event.target.value.trim().toLowerCase();
+        let shown = 0;
+        document.querySelectorAll("#videoList .vid-row").forEach((row) => {
+          const match = !q || row.dataset.title.includes(q);
+          row.classList.toggle("hidden", !match);
+          if (match) shown++;
+        });
+        $("listEmpty").classList.toggle("hidden", shown > 0);
+        updateSelection();
+      });
+
+      $("selectBack").addEventListener("click", () => {
+        go("source");
+        urlInput.focus();
+      });
+      $("selectNext").addEventListener("click", () => {
+        renderQuality();
+        go("quality");
+      });
+
+      /* ---------- Pilih kualitas ---------- */
+      function optionCard({ name, value, checked, title, sub }) {
+        return `<label class="opt cursor-pointer">
+          <input type="radio" name="${name}" value="${value}" class="sr-only" ${checked ? "checked" : ""} />
+          <div class="opt-card bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 transition hover:border-slate-500">
+            <div class="font-medium">${title}</div>
+            ${sub ? `<div class="opt-sub text-xs text-slate-400 mt-0.5">${sub}</div>` : ""}
+          </div>
+        </label>`;
+      }
+
+      function renderQuality() {
+        const info = state.info;
+        const playlist = isPlaylist();
+
+        // Ringkasan sumber
+        if (playlist) {
+          $("qualitySummary").innerHTML =
+            `<div class="flex items-center gap-3 bg-slate-800 border border-slate-700 rounded-xl p-3">
+            <div class="h-[45px] w-20 rounded-md bg-slate-700 flex items-center justify-center text-slate-300 shrink-0"><i class="fa-solid fa-list" aria-hidden="true"></i></div>
+            <div class="min-w-0">
+              <p class="text-sm leading-snug line-clamp-2">${esc(info.title)}</p>
+              <p class="text-xs text-slate-400 mt-0.5">${state.selected.size} video dipilih</p>
+            </div>
+          </div>`;
+        } else {
+          const meta = [info.uploader, fmtDuration(info.duration)]
+            .filter(Boolean)
+            .map(esc)
+            .join(" · ");
+          $("qualitySummary").innerHTML =
+            `<div class="flex items-center gap-3 bg-slate-800 border border-slate-700 rounded-xl p-3">
+            ${thumb(info.thumbnail, "w-20 h-[45px] rounded-md shrink-0")}
+            <div class="min-w-0">
+              <p class="text-sm leading-snug line-clamp-2">${esc(info.title)}</p>
+              ${meta ? `<p class="text-xs text-slate-400 mt-0.5 truncate">${meta}</p>` : ""}
+            </div>
+          </div>`;
+        }
+
+        // Catatan
+        $("qualityNotices").innerHTML =
+          !playlist && info.has_playlist
+            ? notice(
+                "Video ini bagian dari sebuah playlist.",
+                "Lihat playlist",
+                "switchToPlaylist",
+              )
+            : "";
+        const toPlaylist = $("switchToPlaylist");
+        if (toPlaylist) {
+          toPlaylist.addEventListener("click", () => {
+            state.scope = "playlist";
+            loadInfo();
+          });
+        }
+
+        // Pilihan kualitas
+        const box = $("qualityOptions");
+
+        if (state.format === "mp3") {
+          $("qualityLegend").textContent = "Kualitas audio (MP3)";
+          box.className = "grid grid-cols-3 gap-2";
+          box.innerHTML = [
+            ["128", "Hemat ruang"],
+            ["192", "Seimbang"],
+            ["320", "Terbesar"],
+          ]
+            .map(([value, sub]) =>
+              optionCard({
+                name: "quality",
+                value,
+                checked: value === state.bitrate,
+                title: `${value} kbps`,
+                sub,
+              }),
+            )
+            .join("");
+          $("qualityHint").textContent =
+            "Audio asli YouTube berbitrate terbatas, jadi 192 kbps sudah cukup untuk kebanyakan kasus.";
+        } else {
+          $("qualityLegend").textContent = playlist
+            ? "Resolusi maksimal (berlaku untuk semua video)"
+            : "Resolusi video (MP4)";
+          box.className = "grid grid-cols-2 gap-2";
+
+          let options;
+          if (!playlist && info.heights && info.heights.length) {
+            options = info.heights.map((h, i) => ({
+              value: i === 0 ? "best" : String(h.height),
+              title: heightLabel(h.height),
+              sub: [
+                i === 0 ? "Terbaik" : "",
+                h.size ? `≈ ${fmtSize(h.size)}` : "",
+              ]
+                .filter(Boolean)
+                .join(" · "),
+            }));
+          } else {
+            options = [
+              { value: "best", title: "Terbaik", sub: "Otomatis" },
+              { value: "1080", title: "1080p", sub: "Maksimal" },
+              { value: "720", title: "720p", sub: "Maksimal" },
+              { value: "480", title: "480p", sub: "Maksimal" },
+              { value: "360", title: "360p", sub: "Maksimal" },
+            ];
+          }
+
+          if (!options.some((o) => o.value === state.resolution)) {
+            state.resolution = "best";
+          }
+
+          box.innerHTML = options
+            .map((o) =>
+              optionCard({
+                name: "quality",
+                checked: o.value === state.resolution,
+                ...o,
+              }),
+            )
+            .join("");
+
+          $("qualityHint").textContent = playlist
+            ? "Jika sebuah video tidak punya resolusi itu, otomatis dipakai resolusi terdekat di bawahnya."
+            : "Ukuran file hanya perkiraan.";
+        }
+
+        $("startLabel").textContent = playlist
+          ? `Convert ${state.selected.size} video`
+          : "Convert";
+        $("startBtn").disabled = false;
+      }
+
+      $("qualityOptions").addEventListener("change", (event) => {
+        if (event.target.name !== "quality") return;
+        if (state.format === "mp3") state.bitrate = event.target.value;
+        else state.resolution = event.target.value;
+      });
+
+      $("qualityBack").addEventListener("click", () => {
+        if (isPlaylist()) go("select");
+        else {
+          go("source");
+          urlInput.focus();
+        }
+      });
+
+      /* ---------- Mulai konversi & progres ---------- */
+      $("startBtn").addEventListener("click", async () => {
+        const button = $("startBtn");
+        const info = state.info;
+
+        button.disabled = true;
+        $("startLabel").textContent = "Memulai...";
+
+        const body = new FormData();
+        body.append("format", state.format);
+        body.append("resolution", state.resolution);
+        body.append("bitrate", state.bitrate);
+
+        if (isPlaylist()) {
+          body.append("playlist_title", info.title);
+          info.entries
+            .filter((e) => state.selected.has(e.index))
+            .forEach((e) => {
+              const title = e.title.replace(/[\r\n]+/g, " ");
+              body.append("video", `${e.index}|${e.url}|${title}`);
+            });
+        } else {
+          body.append("url", info.url || state.url);
+        }
+
+        try {
+          const response = await fetch("/convert", { method: "POST", body });
+          const data = await response.json().catch(() => ({}));
+
+          if (!response.ok) {
+            throw new Error(data.error || "Gagal memulai konversi");
+          }
+
+          state.jobId = data.job_id;
+          state.cancelling = false;
+          pollFailures = 0;
+          listBuiltFor = null;
+
+          resetProgressUI();
+          go("progress");
+          poll();
+        } catch (error) {
+          renderQuality();
+          renderQualityStartError(
+            error instanceof TypeError
+              ? "Tidak bisa terhubung ke aplikasi lokal. Pastikan server masih berjalan."
+              : error.message,
+          );
+        }
+      });
+
+      function renderQualityStartError(message) {
+        $("qualityNotices").insertAdjacentHTML(
+          "beforeend",
+          `<div role="alert" class="bg-red-950/60 border border-red-900 text-red-300 rounded-xl p-3 text-sm">${esc(message)}</div>`,
+        );
+      }
+
+      function resetProgressUI() {
+        $("progressBar").style.width = "0%";
+        $("progressPercent").textContent = "0%";
+        $("progressTrack").setAttribute("aria-valuenow", "0");
+        $("progressMessage").textContent = "Menyiapkan konversi...";
+        $("progressItems").classList.add("hidden");
+        $("progressList").innerHTML = "";
+        const cancel = $("cancelBtn");
+        cancel.disabled = false;
+        cancel.textContent = "Batalkan";
+      }
+
+      const STATUS_ICON = {
+        pending:
+          '<i class="fa-regular fa-circle text-slate-600" aria-label="Menunggu"></i>',
+        downloading:
+          '<i class="fa-solid fa-circle-notch fa-spin text-red-400" aria-label="Sedang diproses"></i>',
+        done: '<i class="fa-solid fa-circle-check text-green-500" aria-label="Selesai"></i>',
+        failed:
+          '<i class="fa-solid fa-circle-xmark text-red-500" aria-label="Gagal"></i>',
+        cancelled:
+          '<i class="fa-solid fa-ban text-slate-500" aria-label="Dibatalkan"></i>',
+      };
+
+      function renderProgress(job) {
+        const percent = Math.round(Number(job.progress) || 0);
+
+        $("progressBar").style.width = `${percent}%`;
+        $("progressPercent").textContent = `${percent}%`;
+        $("progressTrack").setAttribute("aria-valuenow", String(percent));
+        $("progressMessage").textContent = job.message;
+
+        if (!job.is_playlist) return;
+
+        $("progressItems").classList.remove("hidden");
+        $("progressCurrent").textContent = job.current_title
+          ? `Video ${job.current} dari ${job.total}: ${job.current_title}`
+          : `${job.total} video`;
+
+        const list = $("progressList");
+
+        // Daftar dibuat sekali agar posisi scroll tidak lompat saat polling
+        if (listBuiltFor !== state.jobId) {
+          list.innerHTML = job.items
+            .map(
+              (
+                item,
+                i,
+              ) => `<li class="flex items-center gap-3 px-3 py-2" data-i="${i}" data-status="">
+                <span class="w-4 text-center shrink-0"></span>
+                <span class="truncate" title="${esc(item.title)}">${esc(item.title)}</span>
+              </li>`,
+            )
+            .join("");
+          listBuiltFor = state.jobId;
+        }
+
+        job.items.forEach((item, i) => {
+          const li = list.children[i];
+          if (!li || li.dataset.status === item.status) return;
+          li.dataset.status = item.status;
+          li.firstElementChild.innerHTML = STATUS_ICON[item.status] || "";
+          li.classList.toggle("text-slate-400", item.status === "pending");
+          if (item.status === "downloading") {
+            li.scrollIntoView({ block: "nearest" });
+          }
+        });
+      }
+
+      async function poll() {
+        try {
+          const response = await fetch(`/progress/${state.jobId}`);
+
+          if (!response.ok) {
+            throw new Error("Tidak dapat membaca status konversi");
+          }
+
+          const job = await response.json();
+          pollFailures = 0;
+
+          renderProgress(job);
+
+          if (["completed", "error", "cancelled"].includes(job.status)) {
+            renderResult(job);
+            return;
+          }
+
+          pollTimer = setTimeout(poll, 800);
+        } catch (error) {
+          pollFailures++;
+
+          if (pollFailures >= 3) {
+            renderResult({
+              status: "error",
+              message: error.message,
+              items: [],
+              total: 0,
+              succeeded: 0,
+              failed: 0,
+            });
+            return;
+          }
+
+          pollTimer = setTimeout(poll, 1500);
+        }
+      }
+
+      $("cancelBtn").addEventListener("click", async () => {
+        if (state.cancelling) return;
+        state.cancelling = true;
+
+        const button = $("cancelBtn");
+        button.disabled = true;
+        button.textContent = "Membatalkan...";
+
+        try {
+          await fetch(`/cancel/${state.jobId}`, { method: "POST" });
+        } catch (e) {
+          // Polling tetap berjalan dan akan menampilkan status akhir.
+        }
+      });
+
+      /* ---------- Hasil ---------- */
+      function actionButton(label, id, primary) {
+        return `<button type="button" id="${id}" class="${primary ? "bg-red-600 hover:bg-red-700" : "bg-slate-700 hover:bg-slate-600"} rounded-xl py-3 font-semibold transition">${label}</button>`;
+      }
+
+      function renderResult(job) {
+        clearTimeout(pollTimer);
+
+        const failedItems = (job.items || []).filter(
+          (i) => i.status === "failed",
+        );
+        const multi = job.is_playlist;
+        let icon, title, text, actions;
+
+        if (job.status === "completed") {
+          const partial = job.failed > 0;
+          icon = partial
+            ? '<i class="fa-solid fa-triangle-exclamation text-amber-400" aria-hidden="true"></i>'
+            : '<i class="fa-solid fa-circle-check text-green-500" aria-hidden="true"></i>';
+          title = partial ? "Selesai dengan catatan" : "Konversi Berhasil!";
+          text = multi
+            ? `${job.succeeded} dari ${job.total} video berhasil disimpan.`
+            : "File berhasil disimpan.";
+          actions = actionButton(
+            '<i class="fa-solid fa-rotate-right mr-2" aria-hidden="true"></i>Konversi Lagi',
+            "resultAgain",
+            true,
+          );
+        } else if (job.status === "cancelled") {
+          icon =
+            '<i class="fa-solid fa-ban text-slate-400" aria-hidden="true"></i>';
+          title = "Dibatalkan";
+          text = job.succeeded
+            ? `${job.succeeded} video sempat tersimpan sebelum dibatalkan.`
+            : "Tidak ada file yang tersimpan.";
+          actions =
+            actionButton("Ubah Pengaturan", "resultSettings", false) +
+            actionButton("Mulai dari Awal", "resultAgain", true);
+        } else {
+          icon =
+            '<i class="fa-solid fa-circle-xmark text-red-500" aria-hidden="true"></i>';
+          title = "Konversi Gagal";
+          text = job.message;
+          actions =
+            actionButton("Mulai dari Awal", "resultAgain", false) +
+            actionButton("Coba Lagi", "resultSettings", true);
+        }
+
+        $("resultIcon").innerHTML = icon;
+        $("resultTitle").textContent = title;
+        $("resultText").textContent = text;
+
+        $("resultFolder").classList.toggle(
+          "hidden",
+          !(job.folder && job.succeeded),
+        );
+        $("resultFolderPath").textContent = job.folder || "";
+
+        const showFailed = failedItems.length > 0 && job.status !== "error";
+        $("resultFailed").classList.toggle("hidden", !showFailed);
+        if (showFailed) {
+          $("resultFailedTitle").textContent =
+            `${failedItems.length} video gagal`;
+          $("resultFailedList").innerHTML = failedItems
+            .map(
+              (i) => `<li class="px-3 py-2">
+                <p class="truncate" title="${esc(i.title)}">${esc(i.title)}</p>
+                <p class="text-xs text-slate-400 mt-0.5 break-words">${esc(i.error)}</p>
+              </li>`,
+            )
+            .join("");
+        }
+
+        const box = $("resultActions");
+        box.className =
+          job.status === "completed"
+            ? "grid gap-3 mt-7"
+            : "grid grid-cols-2 gap-3 mt-7";
+        box.innerHTML = actions;
+
+        const again = $("resultAgain");
+        if (again) again.addEventListener("click", resetConverter);
+
+        const settings = $("resultSettings");
+        if (settings) {
+          settings.addEventListener("click", () => {
+            if (state.info) {
+              renderQuality();
+              go("quality");
+            } else {
+              resetConverter();
+            }
+          });
+        }
+
+        go("result");
+      }
+
+      function resetConverter() {
+        clearTimeout(pollTimer);
+        cancelInfo();
+
+        state.info = null;
+        state.jobId = null;
+        state.scope = "auto";
+        state.selected = new Set();
+        state.resolution = "best";
+        state.bitrate = "192";
+        infoCache.clear();
+
+        $("sourceForm").reset();
+        showUrlError("");
+
+        go("source", { focus: false });
+        urlInput.focus();
+      }
+
+      /* ---------- Awal ---------- */
+      go("source", { focus: false });
+    </script>
+  </body>
+</html>
